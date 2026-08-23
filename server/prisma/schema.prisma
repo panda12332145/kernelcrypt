@@ -1,0 +1,279 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CATEGORIAS E SUBCATEGORIAS
+// ============================================================================
+
+model Category {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String   @unique
+  description   String?
+  icon          String?
+  color         String?
+  order         Int      @default(0)
+  githubPath    String?
+  
+  subcategories Subcategory[]
+  articles      Article[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Subcategory {
+  id            String   @id @default(cuid())
+  slug          String
+  name          String
+  description   String?
+  icon          String?
+  color         String?
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order         Int      @default(0)
+  githubPath    String?
+  
+  articles      Article[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([categoryId, slug])
+  @@map("subcategories")
+}
+
+// ============================================================================
+// ARTIGOS - CORE DO SISTEMA
+// ============================================================================
+
+model Article {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  title             String
+  seoTitle          String?
+  description       String?
+  excerpt           String?
+  content           String   // Markdown original
+  renderedHtml      String   // HTML renderizado e cacheado
+  tocJson           String?
+  
+  // Organização
+  categoryId        String
+  category          Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subcategoryId     String?
+  subcategory       Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  
+  // Metadados
+  difficulty        String   @default("beginner")  // beginner | intermediate | advanced
+  featured          Boolean  @default(false)
+  starred           Boolean  @default(false)
+  starCount         Int      @default(0)
+  starredAt         DateTime?
+  coverImage        String?
+  canonicalUrl      String?
+  
+  // Estatísticas de leitura
+  totalWords        Int      @default(0)
+  estimatedWords    Int      @default(0)
+  mediaCount        Int      @default(0)     // imagens, vídeos, pdfs
+  readingTimeSeconds Int    @default(0)     // tempo total em segundos
+  readingTimeMinutes Int    @default(0)     // para conveniência
+  extraSeconds      Int      @default(0)     // segundos adicionais por media
+  readingCalculatedAt DateTime?
+  
+  // Rastreamento
+  tags              String   @default("[]") // JSON array of tags
+  mediaAssets       MediaAsset[]
+  syncLogs          SyncLog[]
+  featuredArticle   FeaturedArticle?
+  
+  // GitHub
+  githubPath        String?  @unique // caminho no repositório
+  githubLastCommit  String?  // SHA/hash do arquivo ou commit processado
+  githubLastCommitDate DateTime?
+  
+  // Timestamps
+  lastSyncedAt      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([featured])
+  @@index([starred])
+  @@index([starredAt])
+  @@index([difficulty])
+  @@index([readingTimeMinutes])
+  @@index([updatedAt])
+  @@index([githubLastCommitDate])
+  @@index([githubLastCommit])
+  @@map("articles")
+}
+
+// ============================================================================
+// TAGS E RELACIONAMENTOS
+// ============================================================================
+
+// ============================================================================
+// MÍDIA/ASSETS
+// ============================================================================
+
+model MediaAsset {
+  id            String   @id @default(cuid())
+  articleId     String?
+  article       Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  type          String   // image | video | pdf | gif | audio
+  url           String
+  title         String?
+  description   String?
+  
+  // Para imagens
+  width         Int?
+  height        Int?
+  altText       String?
+  
+  // Para vídeos
+  duration      Int?     // em segundos
+  thumbnail     String?
+  
+  // Rastreamento
+  githubPath    String?
+  githubUrl     String?
+  sha           String?
+  sizeBytes     Int?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([type])
+  @@index([githubPath])
+  @@map("media_assets")
+}
+
+// ============================================================================
+// SINCRONIZAÇÃO E CACHE
+// ============================================================================
+
+model SyncLog {
+  id              String   @id @default(cuid())
+  articleId       String?
+  article         Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  
+  syncType        String   // full | incremental | deleted
+  status          String   // success | failed | partial
+  message         String?
+  repositorySha   String?
+  
+  filesProcessed  Int      @default(0)
+  filesAdded      Int      @default(0)
+  filesModified   Int      @default(0)
+  filesDeleted    Int      @default(0)
+  
+  errorDetails    String?  // JSON com detalhes de erros
+  
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+
+  @@index([articleId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("sync_logs")
+}
+
+model GitHubCache {
+  id              String   @id @default(cuid())
+  
+  // O que foi cacheado
+  resourceType    String   // commit | tree | blob | branch
+  resourceId      String   // SHA ou identificador
+  etag            String?
+  
+  data            String   // JSON serializado
+  
+  // Controle de cache
+  expiresAt       DateTime
+  hits            Int      @default(0)
+  lastAccessedAt  DateTime @default(now())
+  
+  createdAt       DateTime @default(now())
+
+  @@unique([resourceType, resourceId])
+  @@index([expiresAt])
+  @@map("github_cache")
+}
+
+// ============================================================================
+// ARTIGOS DESTACADOS
+// ============================================================================
+
+model FeaturedArticle {
+  id            String   @id @default(cuid())
+  articleId     String   @unique
+  article       Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  // Posição e ordem
+  position      Int      // para ordenar no frontend
+  banner        String?  // URL da imagem de banner
+  tagline       String?  // texto descritivo curto
+  
+  // Período
+  featuredFrom  DateTime @default(now())
+  featuredUntil DateTime?
+  
+  views         Int      @default(0)
+  clicks        Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([position])
+  @@index([featuredFrom])
+  @@map("featured_articles")
+}
+
+// ============================================================================
+// ESTATÍSTICAS DE LEITURA
+// ============================================================================
+
+model ReadingStats {
+  id            String   @id @default(cuid())
+  
+  // Contadores globais
+  totalArticles Int      @default(0)
+  totalViews    BigInt   @default(0)
+  totalUsers    Int      @default(0)
+  
+  // Por dificuldade
+  beginnerCount Int      @default(0)
+  intermediateCount Int  @default(0)
+  advancedCount Int      @default(0)
+  featuredCount Int      @default(0)
+  starredCount  Int      @default(0)
+  averageReadingTimeMinutes Float @default(0)
+  
+  // Por categoria (JSON)
+  categoryStats String?
+  tagStats      String?
+  mediaStats    String?
+  
+  // Timestamps
+  calculatedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("reading_stats")
+}
