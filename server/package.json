@@ -1,0 +1,56 @@
+{
+  "name": "@wiki/server",
+  "version": "1.0.0",
+  "description": "Wiki Backend - Sincronização GitHub automática e renderização Markdown dinâmica",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "node -r tsconfig-paths/register --loader ts-node/esm src/index.ts",
+    "build": "tsc && tsc-alias --resolve-full-paths --resolve-full-extension .js",
+    "start": "node dist/index.js",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "test": "node --test",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "wiki",
+    "github",
+    "markdown",
+    "dynamic",
+    "cms"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "@prisma/client": "^5.22.0",
+    "@types/sanitize-html": "^2.16.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "gray-matter": "^4.0.3",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.2.0",
+    "markdown-it-emoji": "^2.0.2",
+    "minimatch": "^10.2.5",
+    "node-cron": "^4.2.1",
+    "sanitize-html": "^2.17.4",
+    "uuid": "^14.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/markdown-it-emoji": "^2.0.5",
+    "@types/node": "^25.9.1",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^8.60.0",
+    "@typescript-eslint/parser": "^8.60.0",
+    "eslint": "^10.4.0",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.17",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  }
+}
