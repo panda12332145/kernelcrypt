@@ -1,0 +1,8 @@
+
+# --- Segurança (adicionado na auditoria) ---
+cloudflare.log
+tunnel_link.txt
+*.log
+.env
+__pycache__/
+*.pyc
